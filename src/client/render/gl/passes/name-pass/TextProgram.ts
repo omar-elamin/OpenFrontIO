@@ -46,6 +46,7 @@ export class TextProgram {
   private uFadeOwnerID: WebGLUniformLocation;
   private uHoverFadeAlpha: WebGLUniformLocation;
   private uOutlineWidth: WebGLUniformLocation;
+  private uRenderPx: WebGLUniformLocation;
   private uNightAmbient: WebGLUniformLocation;
   private uOutlineColor: WebGLUniformLocation;
   private uOutlineUsePlayerColor: WebGLUniformLocation;
@@ -122,6 +123,7 @@ export class TextProgram {
       "uHoverFadeAlpha",
     )!;
     this.uOutlineWidth = gl.getUniformLocation(this.program, "uOutlineWidth")!;
+    this.uRenderPx = gl.getUniformLocation(this.program, "uRenderPx")!;
     this.uNightAmbient = gl.getUniformLocation(this.program, "uNightAmbient")!;
     this.uOutlineColor = gl.getUniformLocation(this.program, "uOutlineColor")!;
     this.uOutlineUsePlayerColor = gl.getUniformLocation(
@@ -181,7 +183,7 @@ export class TextProgram {
     const ns = settings.name;
     // The outline and glow widths are in renderDpr() pixels. The shader
     // measures them in canvas pixels: fewer when canvasDpr() is lower.
-    const outlineScale = canvasDpr() / renderDpr();
+    const renderPx = canvasDpr() / renderDpr();
     gl.useProgram(this.program);
 
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
@@ -195,7 +197,8 @@ export class TextProgram {
     gl.uniform1f(this.uHighlightOwnerID, highlightOwnerID);
     gl.uniform1f(this.uFadeOwnerID, fadeOwnerID);
     gl.uniform1f(this.uHoverFadeAlpha, ns.hoverFadeAlpha);
-    gl.uniform1f(this.uOutlineWidth, ns.outlineWidth * outlineScale);
+    gl.uniform1f(this.uOutlineWidth, ns.outlineWidth * renderPx);
+    gl.uniform1f(this.uRenderPx, renderPx);
     gl.uniform1f(this.uNightAmbient, ambient);
     gl.uniform3f(this.uOutlineColor, ns.outlineR, ns.outlineG, ns.outlineB);
     gl.uniform1f(
@@ -203,7 +206,7 @@ export class TextProgram {
       ns.outlineUsePlayerColor ? 1.0 : 0.0,
     );
     gl.uniform1f(this.uFillUsePlayerColor, ns.fillUsePlayerColor ? 1.0 : 0.0);
-    gl.uniform1f(this.uHoverGlowWidth, ns.hoverGlowWidth * outlineScale);
+    gl.uniform1f(this.uHoverGlowWidth, ns.hoverGlowWidth * renderPx);
     gl.uniform1f(this.uHoverGlowAlpha, ns.hoverGlowAlpha);
 
     gl.activeTexture(gl.TEXTURE0);

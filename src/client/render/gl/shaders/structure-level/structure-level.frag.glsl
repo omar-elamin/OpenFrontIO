@@ -4,6 +4,7 @@ precision highp float;
 uniform sampler2D uAtlas;
 uniform float uDistRange;
 uniform float uOutlineWidth;
+uniform float uRenderPx; // a renderDpr() px in canvas px (1 unless fast mode)
 uniform int   uHighlightMask;
 uniform float uHighlightDimAlpha;
 uniform int   uClassic; // 1 = round_6x6 bitmap font, 0 = overpass MSDF
@@ -42,7 +43,7 @@ void main() {
     float screenPxDist = screenPxRange * (sd - 0.5);
     float fillAlpha = clamp(screenPxDist + 0.5, 0.0, 1.0);
 
-    float maxOutline = max(screenPxRange * 0.5 - 1.0, 0.0);
+    float maxOutline = max(screenPxRange * 0.5 - uRenderPx, 0.0);
     float effectiveOutline = min(uOutlineWidth, maxOutline);
     float outlineAlpha = clamp(screenPxDist + effectiveOutline + 0.5, 0.0, 1.0);
 

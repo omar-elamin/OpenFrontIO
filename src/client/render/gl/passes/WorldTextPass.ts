@@ -100,6 +100,7 @@ export class WorldTextPass {
   private uZoom: WebGLUniformLocation;
   private uMinScreenScale: WebGLUniformLocation;
   private uDistRange: WebGLUniformLocation;
+  private uRenderPx: WebGLUniformLocation;
 
   private vao: WebGLVertexArrayObject;
   private instanceBuf: WebGLBuffer;
@@ -197,6 +198,7 @@ export class WorldTextPass {
       "uMinScreenScale",
     )!;
     this.uDistRange = gl.getUniformLocation(this.program, "uDistRange")!;
+    this.uRenderPx = gl.getUniformLocation(this.program, "uRenderPx")!;
 
     // Glyph metrics data texture
     this.glyphMetricsTex = buildGlyphMetricsTex(gl, atlas);
@@ -415,7 +417,7 @@ export class WorldTextPass {
     const dpr = renderDpr();
     // Outline widths are in these pixels too. The shader measures them in
     // canvas pixels, which are fewer when canvasDpr() is lower.
-    const outlineScale = canvasDpr() / dpr;
+    const renderPx = canvasDpr() / dpr;
 
     for (const popup of this.active) {
       const elapsed = now - popup.startMs;
@@ -466,7 +468,7 @@ export class WorldTextPass {
         this.instanceData[off + 6] = popup.colorG;
         this.instanceData[off + 7] = popup.colorB;
         this.instanceData[off + 8] = popup.scale;
-        this.instanceData[off + 9] = popup.outlineWidth * outlineScale;
+        this.instanceData[off + 9] = popup.outlineWidth * renderPx;
         count++;
       }
     }
@@ -512,7 +514,7 @@ export class WorldTextPass {
         this.instanceData[off + 6] = label.colorG;
         this.instanceData[off + 7] = label.colorB;
         this.instanceData[off + 8] = attackScale;
-        this.instanceData[off + 9] = ATTACK_LABEL_OUTLINE_WIDTH * outlineScale;
+        this.instanceData[off + 9] = ATTACK_LABEL_OUTLINE_WIDTH * renderPx;
         count++;
       }
     }
@@ -563,8 +565,7 @@ export class WorldTextPass {
             this.instanceData[off + 6] = label.colorG;
             this.instanceData[off + 7] = label.colorB;
             this.instanceData[off + 8] = ghostScale;
-            this.instanceData[off + 9] =
-              GHOST_COST_OUTLINE_WIDTH * outlineScale;
+            this.instanceData[off + 9] = GHOST_COST_OUTLINE_WIDTH * renderPx;
             count++;
           }
         }
@@ -592,8 +593,7 @@ export class WorldTextPass {
             this.instanceData[off + 6] = label.colorG;
             this.instanceData[off + 7] = label.colorB;
             this.instanceData[off + 8] = ghostScale;
-            this.instanceData[off + 9] =
-              GHOST_COST_OUTLINE_WIDTH * outlineScale;
+            this.instanceData[off + 9] = GHOST_COST_OUTLINE_WIDTH * renderPx;
             count++;
           }
         }
@@ -635,6 +635,7 @@ export class WorldTextPass {
       this.settings.bonusPopup.minScreenScale * dpr,
     );
     gl.uniform1f(this.uDistRange, this.distanceRange);
+    gl.uniform1f(this.uRenderPx, canvasDpr() / dpr);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.atlasTex!);

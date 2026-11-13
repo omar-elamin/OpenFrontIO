@@ -4,6 +4,7 @@ precision highp float;
 uniform sampler2D uAtlas;
 uniform float uDistRange;
 uniform float uOutlineWidth;
+uniform float uRenderPx; // a renderDpr() px in canvas px (1 unless fast mode)
 uniform float uNightAmbient;
 uniform vec3  uOutlineColor;
 uniform float uOutlineUsePlayerColor;
@@ -46,8 +47,12 @@ void main() {
   float fillAlpha = clamp(screenPxDist + 0.5, 0.0, 1.0);
 
   // The SDF saturates at sd=0 (screenPxDist = -screenPxRange*0.5).
-  // Reserve a 1px margin so saturated fragments always get alpha=0.
-  float maxOutline = max(screenPxRange * 0.5 - 1.0, 0.0);
+  // Reserve a 1px margin so saturated fragments always get alpha=0. The
+  // pixel is a renderDpr() pixel, like the widths, so the outline keeps its
+  // on-screen width when the canvas has fewer pixels. It is never under half
+  // a canvas pixel (renderDpr() <= 2), so the outline's 1px AA ramp still
+  // ends at or before the saturation point.
+  float maxOutline = max(screenPxRange * 0.5 - uRenderPx, 0.0);
   float effectiveOutline = min(uOutlineWidth, maxOutline);
 
   vec3 color;

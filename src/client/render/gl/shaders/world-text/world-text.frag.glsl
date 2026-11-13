@@ -3,6 +3,7 @@ precision highp float;
 
 uniform sampler2D uAtlas;
 uniform float uDistRange;
+uniform float uRenderPx; // a renderDpr() px in canvas px (1 unless fast mode)
 
 in vec2 vUV;
 flat in float vAlpha;
@@ -28,7 +29,7 @@ void main() {
   float fillAlpha = clamp(screenPxDist + 0.5, 0.0, 1.0);
 
   // Colored text with dark outline
-  float maxOutline = max(screenPxRange * 0.5 - 1.0, 0.0);
+  float maxOutline = max(screenPxRange * 0.5 - uRenderPx, 0.0);
   float effectiveOutline = min(vOutlineWidth, maxOutline);
   float outlineDist = screenPxDist + effectiveOutline;
   float outlineAlpha = clamp(outlineDist + 0.5, 0.0, 1.0);
@@ -39,7 +40,8 @@ void main() {
   // boundary (otherwise the glow clips at the glyph quad and looks square).
   // Quadratic falloff for a true glow shape — brightest right next to the
   // text, smoothly thinning to nothing.
-  float glowExtent = max(screenPxRange * 0.5 - effectiveOutline - 0.5, 0.0);
+  float glowExtent =
+    max(screenPxRange * 0.5 - effectiveOutline - 0.5 * uRenderPx, 0.0);
   float glowT =
     clamp((outlineDist + glowExtent) / max(glowExtent, 0.0001), 0.0, 1.0);
   float glowAlpha = glowExtent > 0.0 ? glowT * glowT * 0.75 : 0.0;

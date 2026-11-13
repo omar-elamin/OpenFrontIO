@@ -8,6 +8,9 @@ import { StructureLevelPass } from "../../../../src/client/render/gl/passes/Stru
 import { WorldTextPass } from "../../../../src/client/render/gl/passes/WorldTextPass";
 import { GPURenderer } from "../../../../src/client/render/gl/Renderer";
 import { createRenderSettings } from "../../../../src/client/render/gl/RenderSettings";
+import nameFrag from "../../../../src/client/render/gl/shaders/name/name.frag.glsl?raw";
+import structureLevelFrag from "../../../../src/client/render/gl/shaders/structure-level/structure-level.frag.glsl?raw";
+import worldTextFrag from "../../../../src/client/render/gl/shaders/world-text/world-text.frag.glsl?raw";
 import {
   canvasDpr,
   renderDpr,
@@ -50,6 +53,93 @@ function recordingGl(canvas: { width: number; height: number }) {
   return { gl, uniform };
 }
 
+/** Draws the three MSDF text passes and records their outline inputs. */
+function drawText() {
+  const settings = createRenderSettings();
+  const matrix = new Float32Array(9);
+  const uniform1f = (rec: ReturnType<typeof recordingGl>, name: string) =>
+    Number(rec.uniform("uniform1f", name)?.[0]);
+
+  const names = recordingGl({ width: 0, height: 0 });
+  bare(TextProgram, {
+    gl: names.gl,
+    atlasReady: true,
+    textures: {},
+    uOutlineWidth: "uOutlineWidth",
+    uHoverGlowWidth: "uHoverGlowWidth",
+    uRenderPx: "uRenderPx",
+  }).draw(matrix, settings, {} as WebGLVertexArrayObject, 1, 0, -1, -1);
+
+  const levels = recordingGl({ width: 0, height: 0 });
+  bare(StructureLevelPass, {
+    gl: levels.gl,
+    settings,
+    lastUnits: null,
+    msdf: { atlasReady: true },
+    classic: { atlasReady: true },
+    instanceCount: 1,
+    uOutlineWidth: "uOutlineWidth",
+    uRenderPx: "uRenderPx",
+  }).draw(matrix, 1);
+
+  const texts = recordingGl({ width: 0, height: 0 });
+  const worldText = bare(WorldTextPass, {
+    gl: texts.gl,
+    settings,
+    atlasReady: true,
+    uRenderPx: "uRenderPx",
+    glyph: {
+      advance: new Float32Array(CHAR_RANGE).fill(10),
+      xOffset: new Float32Array(CHAR_RANGE).fill(0),
+      visW: new Float32Array(CHAR_RANGE).fill(10),
+    },
+    kernTable: new Int8Array(CHAR_RANGE * CHAR_RANGE),
+    charCodes: new Uint8Array(64),
+    cursors: new Float32Array(64),
+    maxInstances: 16,
+    instanceData: new Float32Array(16 * 10),
+    active: [],
+    attackTroopLabels: [
+      { x: 0, y: 0, text: "5", colorR: 1, colorG: 1, colorB: 1 },
+    ],
+    ghostCostLabel: null,
+    timeFn: () => 0,
+  });
+  worldText.tick(1);
+  worldText.draw(matrix, 1);
+  const { instanceData } = worldText as unknown as {
+    instanceData: Float32Array;
+  };
+
+  return {
+    settings,
+    name: {
+      outline: uniform1f(names, "uOutlineWidth"),
+      glow: uniform1f(names, "uHoverGlowWidth"),
+      renderPx: uniform1f(names, "uRenderPx"),
+    },
+    level: {
+      outline: uniform1f(levels, "uOutlineWidth"),
+      renderPx: uniform1f(levels, "uRenderPx"),
+    },
+    worldText: {
+      // The attack label's outline width: float 9 of its instance.
+      outline: instanceData[9],
+      renderPx: uniform1f(texts, "uRenderPx"),
+    },
+  };
+}
+
+/**
+ * The MSDF text shaders' outline clamp, ported. `rangePx` is screenPxRange,
+ * the glyph's SDF range in canvas pixels; the widths are in canvas pixels too.
+ */
+function clampOutline(rangePx: number, width: number, renderPx: number) {
+  const maxOutline = Math.max(rangePx * 0.5 - renderPx, 0);
+  const outline = Math.min(width, maxOutline);
+  return { outline, room: Math.max(maxOutline - outline, 0) };
+}
+
 describe("canvasDpr", () => {
   it("is min(devicePixelRatio, 2) without a cap", () => {
     for (const dpr of [1, 1.5, 2, 3]) {
@@ -65,6 +155,12 @@ describe("canvasDpr", () => {
       expect(canvasDpr()).toBe(1);
       expect(renderDpr()).toBe(Math.min(dpr, 2));
     }
+  });
+
+  it("never raises the resolution: a 0.8 display stays at 0.8", () => {
+    window.devicePixelRatio = 0.8;
+    setMaxCanvasDpr(1);
+    expect(canvasDpr()).toBe(0.8);
   });
 });
 
@@ -134,78 +230,90 @@ describe("the canvas DPR cap", () => {
     expect(fast.pixelSize).toBe(full.pixelSize);
   });
 
-  it("keeps text outlines and the name hover glow the same width", () => {
-    const settings = createRenderSettings();
-    const matrix = new Float32Array(9);
-    const draw = () => {
-      const names = recordingGl({ width: 0, height: 0 });
-      bare(TextProgram, {
-        gl: names.gl,
-        atlasReady: true,
-        textures: {},
-        uOutlineWidth: "uOutlineWidth",
-        uHoverGlowWidth: "uHoverGlowWidth",
-      }).draw(matrix, settings, {} as WebGLVertexArrayObject, 1, 0, -1, -1);
-
-      const levels = recordingGl({ width: 0, height: 0 });
-      bare(StructureLevelPass, {
-        gl: levels.gl,
-        settings,
-        lastUnits: null,
-        msdf: { atlasReady: true },
-        classic: { atlasReady: true },
-        instanceCount: 1,
-        uOutlineWidth: "uOutlineWidth",
-      }).draw(matrix, 1);
-
-      const worldText = bare(WorldTextPass, {
-        glyph: {
-          advance: new Float32Array(CHAR_RANGE).fill(10),
-          xOffset: new Float32Array(CHAR_RANGE).fill(0),
-          visW: new Float32Array(CHAR_RANGE).fill(10),
-        },
-        kernTable: new Int8Array(CHAR_RANGE * CHAR_RANGE),
-        charCodes: new Uint8Array(64),
-        cursors: new Float32Array(64),
-        maxInstances: 16,
-        instanceData: new Float32Array(16 * 10),
-        active: [],
-        attackTroopLabels: [
-          { x: 0, y: 0, text: "5", colorR: 1, colorG: 1, colorB: 1 },
-        ],
-        ghostCostLabel: null,
-        timeFn: () => 0,
-      });
-      worldText.tick(1);
-      const { instanceData } = worldText as unknown as {
-        instanceData: Float32Array;
-      };
-
-      return {
-        nameOutline: Number(names.uniform("uniform1f", "uOutlineWidth")?.[0]),
-        nameGlow: Number(names.uniform("uniform1f", "uHoverGlowWidth")?.[0]),
-        levelOutline: Number(levels.uniform("uniform1f", "uOutlineWidth")?.[0]),
-        // The attack label's outline width: float 9 of its instance.
-        worldTextOutline: instanceData[9],
-      };
-    };
-
+  it("halves the text outline and hover glow widths on a 1x canvas", () => {
     window.devicePixelRatio = 2;
-    const full = draw();
+    const full = drawText();
     setMaxCanvasDpr(1);
-    const fast = draw();
+    const fast = drawText();
 
     // The shaders measure these widths in canvas pixels. A 1x canvas has half
     // as many per CSS pixel, so half the width keeps the same on-screen size.
-    expect(full.nameOutline).toBe(settings.name.outlineWidth);
-    expect(full.nameGlow).toBe(settings.name.hoverGlowWidth);
-    expect(full.levelOutline).toBe(settings.structureLevel.outlineWidth);
-    expect(full.worldTextOutline).toBeCloseTo(1.2, 6);
-    expect(fast).toEqual({
-      nameOutline: full.nameOutline / 2,
-      nameGlow: full.nameGlow / 2,
-      levelOutline: full.levelOutline / 2,
-      worldTextOutline: full.worldTextOutline / 2,
+    const { settings } = full;
+    expect(full.name).toEqual({
+      outline: settings.name.outlineWidth,
+      glow: settings.name.hoverGlowWidth,
+      renderPx: 1,
     });
+    expect(full.level).toEqual({
+      outline: settings.structureLevel.outlineWidth,
+      renderPx: 1,
+    });
+    expect(full.worldText.outline).toBeCloseTo(1.2, 6);
+    expect(full.worldText.renderPx).toBe(1);
+    expect(fast.name).toEqual({
+      outline: full.name.outline / 2,
+      glow: full.name.glow / 2,
+      renderPx: 0.5,
+    });
+    expect(fast.level).toEqual({
+      outline: full.level.outline / 2,
+      renderPx: 0.5,
+    });
+    expect(fast.worldText).toEqual({
+      outline: full.worldText.outline / 2,
+      renderPx: 0.5,
+    });
+  });
+
+  it("keeps the outlines' on-screen width where the shader clamps them", () => {
+    // clampOutline and the world-text glow below must match the shaders.
+    for (const frag of [nameFrag, structureLevelFrag, worldTextFrag]) {
+      expect(frag).toContain("max(screenPxRange * 0.5 - uRenderPx, 0.0)");
+    }
+    expect(worldTextFrag).toContain(
+      "max(screenPxRange * 0.5 - effectiveOutline - 0.5 * uRenderPx, 0.0)",
+    );
+
+    window.devicePixelRatio = 2;
+    const full = drawText();
+    setMaxCanvasDpr(1);
+    const fast = drawText();
+
+    /** Widths in CSS px for a glyph whose SDF range is `range2x` px at 2x. */
+    const onScreen = (text: ReturnType<typeof drawText>, dpr: number) => {
+      return (range2x: number) => {
+        const range = (range2x * dpr) / 2;
+        const { name, level, worldText } = text;
+        const n = clampOutline(range, name.outline, name.renderPx);
+        const l = clampOutline(range, level.outline, level.renderPx);
+        const w = clampOutline(range, worldText.outline, worldText.renderPx);
+        const halo = range * 0.5 - w.outline - 0.5 * worldText.renderPx;
+        return {
+          nameOutline: n.outline / dpr,
+          nameGlow: Math.min(name.glow, n.room) / dpr,
+          levelOutline: l.outline / dpr,
+          worldTextOutline: w.outline / dpr,
+          worldTextHalo: Math.max(halo, 0) / dpr,
+        };
+      };
+    };
+    const off = onScreen(full, 2);
+    const on = onScreen(fast, 1);
+
+    // Small ranges clamp every outline; 40 clamps none. Below 2 the shader's
+    // 1 px floor on the range takes over at 1x.
+    for (const range2x of [2, 3, 4, 6, 8, 12, 40]) {
+      const expected = off(range2x);
+      const actual = on(range2x);
+      for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+        expect(actual[key], `${key} at range ${range2x}`).toBeCloseTo(
+          expected[key],
+          9,
+        );
+      }
+    }
+    // A range of 4 at 2x clamps the 1.4 px name outline to 0.5 CSS px.
+    expect(off(4).nameOutline).toBe(0.5);
+    expect(on(4).nameOutline).toBe(0.5);
   });
 });

@@ -124,6 +124,7 @@ export class StructureLevelPass {
   private uBase: WebGLUniformLocation;
   private uDistRange: WebGLUniformLocation;
   private uOutlineWidth: WebGLUniformLocation;
+  private uRenderPx: WebGLUniformLocation;
   private uLevelScale: WebGLUniformLocation;
   private uLevelOffsetY: WebGLUniformLocation;
   private uHighlightMask: WebGLUniformLocation;
@@ -231,6 +232,7 @@ export class StructureLevelPass {
     this.uBase = gl.getUniformLocation(this.program, "uBase")!;
     this.uDistRange = gl.getUniformLocation(this.program, "uDistRange")!;
     this.uOutlineWidth = gl.getUniformLocation(this.program, "uOutlineWidth")!;
+    this.uRenderPx = gl.getUniformLocation(this.program, "uRenderPx")!;
     this.uLevelScale = gl.getUniformLocation(this.program, "uLevelScale")!;
     this.uLevelOffsetY = gl.getUniformLocation(this.program, "uLevelOffsetY")!;
     this.uHighlightMask = gl.getUniformLocation(
@@ -374,7 +376,7 @@ export class StructureLevelPass {
     const sl = this.settings.structureLevel;
     // The outline width is in renderDpr() pixels. The shader measures it in
     // canvas pixels, which are fewer when canvasDpr() is lower.
-    const outlineScale = canvasDpr() / renderDpr();
+    const renderPx = canvasDpr() / renderDpr();
 
     gl.useProgram(this.program);
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
@@ -387,7 +389,8 @@ export class StructureLevelPass {
     gl.uniform1f(this.uAtlasScaleH, font.atlasScaleH);
     gl.uniform1f(this.uBase, font.base);
     gl.uniform1f(this.uDistRange, font.distanceRange);
-    gl.uniform1f(this.uOutlineWidth, sl.outlineWidth * outlineScale);
+    gl.uniform1f(this.uOutlineWidth, sl.outlineWidth * renderPx);
+    gl.uniform1f(this.uRenderPx, renderPx);
     gl.uniform1f(this.uLevelScale, sl.scale);
     gl.uniform1f(this.uLevelOffsetY, sl.offsetY);
     gl.uniform1i(this.uHighlightMask, this.highlightMask);
