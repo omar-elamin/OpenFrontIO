@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 /** An instance with just `fields` set, skipping the GL setup. */
-function bare<T>(cls: { prototype: T }, fields: object): T {
+function bare<T extends object>(cls: { prototype: T }, fields: object): T {
   return Object.assign(Object.create(cls.prototype) as T, fields);
 }
 
