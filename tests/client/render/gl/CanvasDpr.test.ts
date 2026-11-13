@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Camera } from "../../../../src/client/render/gl/Camera";
 import { CrosshairPass } from "../../../../src/client/render/gl/passes/CrosshairPass";
+import { LightmapPass } from "../../../../src/client/render/gl/passes/LightmapPass";
+import { DebugProgram } from "../../../../src/client/render/gl/passes/name-pass/DebugProgram";
 import { TextProgram } from "../../../../src/client/render/gl/passes/name-pass/TextProgram";
 import { CHAR_RANGE } from "../../../../src/client/render/gl/passes/name-pass/Types";
 import { NukeTrajectoryPass } from "../../../../src/client/render/gl/passes/NukeTrajectoryPass";
@@ -8,6 +10,7 @@ import { StructureLevelPass } from "../../../../src/client/render/gl/passes/Stru
 import { WorldTextPass } from "../../../../src/client/render/gl/passes/WorldTextPass";
 import { GPURenderer } from "../../../../src/client/render/gl/Renderer";
 import { createRenderSettings } from "../../../../src/client/render/gl/RenderSettings";
+import debugBoxFrag from "../../../../src/client/render/gl/shaders/name/debug-box.frag.glsl?raw";
 import nameFrag from "../../../../src/client/render/gl/shaders/name/name.frag.glsl?raw";
 import structureLevelFrag from "../../../../src/client/render/gl/shaders/structure-level/structure-level.frag.glsl?raw";
 import worldTextFrag from "../../../../src/client/render/gl/shaders/world-text/world-text.frag.glsl?raw";
@@ -50,7 +53,7 @@ function recordingGl(canvas: { width: number; height: number }) {
   ) as unknown as WebGL2RenderingContext;
   const uniform = (method: string, location: string) =>
     calls.find((call) => call[0] === method && call[1] === location)?.slice(2);
-  return { gl, uniform };
+  return { gl, uniform, calls };
 }
 
 /** Draws the three MSDF text passes and records their outline inputs. */
@@ -315,5 +318,68 @@ describe("the canvas DPR cap", () => {
     // A range of 4 at 2x clamps the 1.4 px name outline to 0.5 CSS px.
     expect(off(4).nameOutline).toBe(0.5);
     expect(on(4).nameOutline).toBe(0.5);
+  });
+
+  it("keeps the night lightmap's blur radius on screen", () => {
+    /** How far the blur's outer taps reach, in CSS px across and down. */
+    const outerTaps = () => {
+      const { canvas, camera } = resize(1280, 800);
+      const rec = recordingGl(canvas);
+      bare(LightmapPass, {
+        gl: rec.gl,
+        settings: createRenderSettings(),
+        // A large map keeps blurScale at its cap of 1 at this zoom.
+        mapW: 100_000,
+        mapH: 100_000,
+        uBlurDir: "uBlurDir",
+        ensureLightSize: () => {},
+        pointLightPass: { draw: () => {} },
+        falloutLightPass: { draw: () => {} },
+      }).draw(camera.getMatrix(), canvas.width, canvas.height, 0);
+      const dirs = rec.calls.filter(
+        (call) => call[0] === "uniform2f" && call[1] === "uBlurDir",
+      );
+      // The shader samples 2 steps of uDir out, in UV: a fraction of the
+      // screen, which is 1280 x 800 CSS px.
+      return {
+        x: 2 * Number(dirs[0][2]) * 1280,
+        y: 2 * Number(dirs[1][3]) * 800,
+      };
+    };
+
+    window.devicePixelRatio = 2;
+    const full = outerTaps();
+    setMaxCanvasDpr(1);
+    const fast = outerTaps();
+
+    expect(full.x).toBeCloseTo(2, 9);
+    expect(full.y).toBeCloseTo(2, 9);
+    expect(fast).toEqual(full);
+  });
+
+  it("keeps the name debug boxes' border at least as wide on screen", () => {
+    expect(debugBoxFrag).toContain("max(1.5 * uRenderPx, 1.0)");
+    /** The shader's border width in canvas px (ported), in CSS px. */
+    const borderCssPx = () => {
+      const rec = recordingGl({ width: 0, height: 0 });
+      bare(DebugProgram, {
+        gl: rec.gl,
+        uRenderPx: "uRenderPx",
+        maxPlayers: 1,
+      }).draw(
+        new Float32Array(9),
+        createRenderSettings(),
+        {} as WebGLVertexArrayObject,
+      );
+      const renderPx = Number(rec.uniform("uniform1f", "uRenderPx")?.[0]);
+      return Math.max(1.5 * renderPx, 1) / canvasDpr();
+    };
+
+    window.devicePixelRatio = 2;
+    expect(borderCssPx()).toBe(0.75);
+    // 0.75 CSS px is 0.75 canvas px on a 1x canvas. A border without
+    // anti-aliasing that thin misses whole pixel rows, so it keeps one pixel.
+    setMaxCanvasDpr(1);
+    expect(borderCssPx()).toBe(1);
   });
 });

@@ -8,6 +8,7 @@
 import type { RenderSettings } from "../../RenderSettings";
 import debugBoxFragSrc from "../../shaders/name/debug-box.frag.glsl?raw";
 import debugBoxVertSrc from "../../shaders/name/debug-box.vert.glsl?raw";
+import { canvasDpr, renderDpr } from "../../utils/Dpr";
 import { createProgram } from "../../utils/GlUtils";
 import type { ParsedAtlas } from "./Types";
 
@@ -27,6 +28,7 @@ export class DebugProgram {
   private uCullThreshold: WebGLUniformLocation;
   private uNameScaleFactor: WebGLUniformLocation;
   private uNameScaleCap: WebGLUniformLocation;
+  private uRenderPx: WebGLUniformLocation;
 
   constructor(
     gl: WebGL2RenderingContext,
@@ -72,6 +74,7 @@ export class DebugProgram {
       "uNameScaleFactor",
     )!;
     this.uNameScaleCap = gl.getUniformLocation(this.program, "uNameScaleCap")!;
+    this.uRenderPx = gl.getUniformLocation(this.program, "uRenderPx")!;
   }
 
   draw(
@@ -89,6 +92,7 @@ export class DebugProgram {
     gl.uniform1f(this.uCullThreshold, ns.cullThreshold);
     gl.uniform1f(this.uNameScaleFactor, ns.nameScaleFactor);
     gl.uniform1f(this.uNameScaleCap, ns.nameScaleCap);
+    gl.uniform1f(this.uRenderPx, canvasDpr() / renderDpr());
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.playerDataTex);

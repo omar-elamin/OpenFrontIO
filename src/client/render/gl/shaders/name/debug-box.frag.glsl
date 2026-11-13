@@ -5,6 +5,8 @@ in vec2 vUV;
 flat in int vBoxType;
 flat in vec4 vColor;
 
+uniform float uRenderPx; // a renderDpr() px in canvas px (1 unless fast mode)
+
 out vec4 fragColor;
 
 void main() {
@@ -19,7 +21,9 @@ void main() {
     fragColor = vColor;
   } else {
     // Wireframe border for name/flag boxes
-    float borderWidth = 1.5;
+    // 1.5 renderDpr() pixels, but at least one canvas pixel: the border has
+    // no anti-aliasing, so a thinner one would miss whole pixel rows.
+    float borderWidth = max(1.5 * uRenderPx, 1.0);
     vec2 pixelSize = fwidth(vUV);
     vec2 border = borderWidth * pixelSize;
 

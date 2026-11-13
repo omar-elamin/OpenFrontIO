@@ -6,6 +6,7 @@
  */
 
 import type { RenderSettings } from "../RenderSettings";
+import { canvasDpr, renderDpr } from "../utils/Dpr";
 import { createFullscreenQuad, createProgram } from "../utils/GlUtils";
 import type { FalloutLightPass } from "./FalloutLightPass";
 import type { PointLightPass } from "./PointLightPass";
@@ -176,6 +177,9 @@ export class LightmapPass {
       (zoom * mapSize) / this.settings.lighting.blurZoomDivisor,
       1.0,
     );
+    // Taps step blurScale lightmap texels. A texel is wider on screen when
+    // canvasDpr() is lower, so scale the step to keep the blur radius.
+    const step = blurScale * (canvasDpr() / renderDpr());
 
     gl.disable(gl.BLEND);
     gl.useProgram(this.blurProg);
@@ -185,7 +189,7 @@ export class LightmapPass {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightFboB);
       gl.viewport(0, 0, lw, lh);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform2f(this.uBlurDir, blurScale / lw, 0);
+      gl.uniform2f(this.uBlurDir, step / lw, 0);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.lightTexA);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -193,7 +197,7 @@ export class LightmapPass {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightFboA);
       gl.viewport(0, 0, lw, lh);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform2f(this.uBlurDir, 0, blurScale / lh);
+      gl.uniform2f(this.uBlurDir, 0, step / lh);
       gl.bindTexture(gl.TEXTURE_2D, this.lightTexB);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
