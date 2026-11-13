@@ -134,6 +134,7 @@ describe("user-setting tabs", () => {
     "graphics-preset-selector",
     "#emoji-toggle",
     "#performance-overlay-toggle",
+    "#fast-mode-toggle",
   ];
 
   // Everything that changes how the game is played, or what the game tells
@@ -182,6 +183,25 @@ describe("user-setting tabs", () => {
     el.open({ tab: "graphics" });
     await el.updateComplete;
     expect(el.querySelector(selector)).not.toBeNull();
+  });
+
+  it("turns fast mode on and off from its Graphics toggle", async () => {
+    const el = await mount(false);
+    el.open({ tab: "graphics" });
+    await el.updateComplete;
+
+    const input = el.querySelector<HTMLInputElement>(
+      "#fast-mode-toggle input[type=checkbox]",
+    )!;
+    expect(input.checked).toBe(false);
+
+    input.click();
+    await el.updateComplete;
+    expect(new UserSettings().fastMode()).toBe(true);
+
+    input.click();
+    await el.updateComplete;
+    expect(new UserSettings().fastMode()).toBe(false);
   });
 
   it("updates the performance overlay toggle when its visibility changes elsewhere", async () => {

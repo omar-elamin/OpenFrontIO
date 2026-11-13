@@ -72,7 +72,7 @@ import {
   hexToRgb,
   MAX_TRAIL_COLORS,
 } from "./utils/ColorUtils";
-import { renderDpr } from "./utils/Dpr";
+import { canvasDpr } from "./utils/Dpr";
 import {
   createTexture2D,
   toScreen,
@@ -677,7 +677,7 @@ export class GPURenderer {
   // ---------------------------------------------------------------------------
 
   resize(cssWidth: number, cssHeight: number): void {
-    const dpr = renderDpr();
+    const dpr = canvasDpr();
     this.canvas.width = Math.round(cssWidth * dpr);
     this.canvas.height = Math.round(cssHeight * dpr);
     this.camera.resize(cssWidth, cssHeight);
@@ -685,6 +685,11 @@ export class GPURenderer {
 
   setCameraState(x: number, y: number, z: number): void {
     this.camera.setCameraState(x, y, z);
+  }
+
+  /** The map is drawn at most `fps` times a second (null: every frame). */
+  setMaxFps(fps: number | null): void {
+    this.territoryPass.setMaxFps(fps);
   }
 
   // ---------------------------------------------------------------------------
@@ -1252,7 +1257,7 @@ export class GPURenderer {
     if (this.inSpawnPhase) {
       this.territoryPass.flushAllDripBuckets();
     } else {
-      this.territoryPass.drainDripBucket();
+      this.territoryPass.drainDripBuckets();
     }
     // Full uploads need a full border recompute; scatter uploads already
     // pushed per-tile border patches via the wired `borderPatchConsumer`.

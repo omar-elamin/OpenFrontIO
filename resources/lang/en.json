@@ -3291,6 +3291,8 @@
     "emojis_label": "Emojis",
     "exit_game_info": "Return to main menu",
     "exit_game_label": "Exit Game",
+    "fast_mode_desc": "Use less battery and GPU: limits the map to 30 frames per second and draws it at standard resolution.",
+    "fast_mode_label": "Fast Mode",
     "game_menu_title": "Menu",
     "game_speed_down": "Game Speed Down",
     "game_speed_down_desc": "Cycle to previous game speed. Single player only.",

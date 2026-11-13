@@ -3,6 +3,7 @@ import {
   ACTIVE_LOADOUT_KEY,
   CROWN_KEY,
   EFFECTS_KEY,
+  FAST_MODE_KEY,
   FAVORITE_EMOJIS_KEY,
   FLAG_KEY,
   LOADOUTS_KEY,
@@ -680,6 +681,27 @@ describe("UserSettings replay viewer", () => {
     expect(new UserSettings().replayViewer()).toBe(false);
     new UserSettings().setReplayViewer(true);
     expect(new UserSettings().replayViewer()).toBe(true);
+  });
+});
+
+describe("UserSettings fast mode", () => {
+  beforeEach(resetUserSettingsState);
+
+  it("is off by default, and a toggle persists and is announced", () => {
+    expect(new UserSettings().fastMode()).toBe(false);
+    const seen: unknown[] = [];
+    const listener = (e: Event) => seen.push((e as CustomEvent).detail);
+    const event = `${USER_SETTINGS_CHANGED_EVENT}:${FAST_MODE_KEY}`;
+    window.addEventListener(event, listener);
+
+    new UserSettings().toggleFastMode();
+    expect(new UserSettings().fastMode()).toBe(true);
+    expect(localStorage.getItem("settings.fastMode")).toBe("true");
+    new UserSettings().toggleFastMode();
+    expect(new UserSettings().fastMode()).toBe(false);
+
+    window.removeEventListener(event, listener);
+    expect(seen).toEqual(["true", "false"]);
   });
 });
 

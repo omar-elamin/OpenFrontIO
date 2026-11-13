@@ -12,6 +12,7 @@
 
 import type { NukeTrajectoryData } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
+import { canvasDpr, renderDpr } from "../utils/Dpr";
 import { createProgram } from "../utils/GlUtils";
 
 import markerFragSrc from "../shaders/nuke-trajectory/nuke-trajectory-marker.frag.glsl?raw";
@@ -245,7 +246,10 @@ export class NukeTrajectoryPass {
     const gl = this.gl;
     const d = this.data;
     const s = this.settings.nukeTrajectory;
-    const pixelSize = 2.0 / (cameraMatrix[0] * gl.drawingBufferWidth);
+    // World units per renderDpr() pixel, the unit of the widths and dashes
+    // below, so they keep their size when canvasDpr() is lower.
+    const pxScale = renderDpr() / canvasDpr();
+    const pixelSize = 2.0 / (cameraMatrix[0] * gl.drawingBufferWidth * pxScale);
 
     // Derived pixel dimensions
     const lineHalfPx = s.lineWidth / 2;

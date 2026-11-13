@@ -8,6 +8,7 @@ const stub = vi.hoisted(() => ({
   constructed: 0,
   disposeArgs: [] as Array<{ releaseContext?: boolean } | undefined>,
   failConstruct: false,
+  maxFps: [] as Array<number | null>,
 }));
 
 vi.mock("../../src/client/render/gl/Renderer", () => ({
@@ -20,6 +21,9 @@ vi.mock("../../src/client/render/gl/Renderer", () => ({
       stub.disposeArgs.push(opts);
     }
     resize() {}
+    setMaxFps(fps: number | null) {
+      stub.maxFps.push(fps);
+    }
     setMapLayers() {}
     setLayerVisible() {}
     setLayerAlpha() {}
@@ -51,6 +55,7 @@ describe("MapRenderer context loss", () => {
     stub.constructed = 0;
     stub.disposeArgs = [];
     stub.failConstruct = false;
+    stub.maxFps = [];
   });
 
   // A GPU-process crash is a recoverable loss, but only while the page leaves
@@ -89,6 +94,18 @@ describe("MapRenderer context loss", () => {
 
     expect(stub.constructed).toBe(2);
     expect(reupload).toHaveBeenCalledOnce();
+    view.dispose();
+  });
+
+  it("gives the restored renderer the frame-rate cap", () => {
+    const { view, canvas } = makeRenderer();
+    view.setMaxFps(30);
+
+    canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
+    canvas.dispatchEvent(new Event("webglcontextrestored"));
+
+    // Initial renderer (uncapped), setMaxFps, then the restored renderer.
+    expect(stub.maxFps).toEqual([null, 30, 30]);
     view.dispose();
   });
 

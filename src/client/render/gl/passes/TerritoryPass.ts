@@ -21,6 +21,15 @@ import overlayVertSrc from "../shaders/map-overlay/overlay.vert.glsl?raw";
 import territoryFragSrc from "../shaders/map-overlay/territory.frag.glsl?raw";
 import { TileScatterPass } from "./TileScatterPass";
 
+/**
+ * Drip buckets to drain per frame at `fps` so that a full drip cycle takes no
+ * longer than it does at 60 FPS, one bucket per frame.
+ */
+export function dripBucketsPerFrame(bucketCount: number, fps: number): number {
+  const framesPerCycle = Math.max(1, Math.floor((bucketCount * fps) / 60));
+  return Math.ceil(bucketCount / framesPerCycle);
+}
+
 export class TerritoryPass {
   private gl: WebGL2RenderingContext;
   private settings: RenderSettings;
@@ -98,6 +107,8 @@ export class TerritoryPass {
    * Each incoming change is hashed by tile ref to a fixed bucket (stable hash
    * preserves per-tile ordering across ticks). One bucket drains per render
    * frame, giving a ~bucketCount-frame buffer that smooths over network jitter.
+   * Below 60 FPS several drain per frame, so the buffer keeps its 60 FPS
+   * duration (setMaxFps).
    *
    * Each bucket is a flat number[] with interleaved [ref, state, ref, state, …]
    * pairs — avoids per-tile object allocation on the hot push path.
@@ -105,6 +116,7 @@ export class TerritoryPass {
   private readonly nBuckets: number;
   private dripBuckets: number[][] = [];
   private currentBucket = 0;
+  private bucketsPerFrame = 1;
 
   constructor(
     gl: WebGL2RenderingContext,
@@ -245,8 +257,18 @@ export class TerritoryPass {
     }
   }
 
-  /** Drain one drip bucket into cpuTileState. Called once per render frame. */
-  drainDripBucket(): void {
+  /** The map is drawn at most `fps` times a second (null: every frame). */
+  setMaxFps(fps: number | null): void {
+    this.bucketsPerFrame =
+      fps === null ? 1 : dripBucketsPerFrame(this.nBuckets, fps);
+  }
+
+  /** Drain the next drip bucket(s) into cpuTileState. Called once per frame. */
+  drainDripBuckets(): void {
+    for (let i = 0; i < this.bucketsPerFrame; i++) this.drainDripBucket();
+  }
+
+  private drainDripBucket(): void {
     const bucket = this.dripBuckets[this.currentBucket];
     if (bucket.length > 0) {
       const ts = this.cpuTileState;

@@ -594,6 +594,10 @@ export class UserSettingModal extends BaseModal {
     this.userSettings.toggleMapLayers();
   }
 
+  private toggleFastMode() {
+    this.userSettings.toggleFastMode();
+  }
+
   private toggleHelpMessages() {
     this.userSettings.toggleHelpMessages();
 
@@ -1958,6 +1962,15 @@ export class UserSettingModal extends BaseModal {
         id="performance-overlay-toggle"
         .checked=${this.userSettings.performanceOverlay()}
         @change=${this.togglePerformanceOverlay}
+      ></setting-toggle>
+
+      <!-- 🔋 Fast Mode -->
+      <setting-toggle
+        label="${translateText("user_setting.fast_mode_label")}"
+        description="${translateText("user_setting.fast_mode_desc")}"
+        id="fast-mode-toggle"
+        .checked=${this.userSettings.fastMode()}
+        @change=${this.toggleFastMode}
       ></setting-toggle>
 
       <!-- 🗺️ Map Layers -->

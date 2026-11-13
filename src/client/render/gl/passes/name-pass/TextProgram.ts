@@ -10,6 +10,7 @@ import { assetUrl } from "@openfront/shared/AssetUrls";
 import type { RenderSettings } from "../../RenderSettings";
 import nameFragSrc from "../../shaders/name/name.frag.glsl?raw";
 import nameVertSrc from "../../shaders/name/name.vert.glsl?raw";
+import { canvasDpr, renderDpr } from "../../utils/Dpr";
 import { createProgram, shaderSrc } from "../../utils/GlUtils";
 import type { ParsedAtlas } from "./Types";
 import { LINES_PER_PLAYER, MAX_CHARS } from "./Types";
@@ -178,6 +179,9 @@ export class TextProgram {
 
     const gl = this.gl;
     const ns = settings.name;
+    // The outline and glow widths are in renderDpr() pixels. The shader
+    // measures them in canvas pixels: fewer when canvasDpr() is lower.
+    const outlineScale = canvasDpr() / renderDpr();
     gl.useProgram(this.program);
 
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
@@ -191,7 +195,7 @@ export class TextProgram {
     gl.uniform1f(this.uHighlightOwnerID, highlightOwnerID);
     gl.uniform1f(this.uFadeOwnerID, fadeOwnerID);
     gl.uniform1f(this.uHoverFadeAlpha, ns.hoverFadeAlpha);
-    gl.uniform1f(this.uOutlineWidth, ns.outlineWidth);
+    gl.uniform1f(this.uOutlineWidth, ns.outlineWidth * outlineScale);
     gl.uniform1f(this.uNightAmbient, ambient);
     gl.uniform3f(this.uOutlineColor, ns.outlineR, ns.outlineG, ns.outlineB);
     gl.uniform1f(
@@ -199,7 +203,7 @@ export class TextProgram {
       ns.outlineUsePlayerColor ? 1.0 : 0.0,
     );
     gl.uniform1f(this.uFillUsePlayerColor, ns.fillUsePlayerColor ? 1.0 : 0.0);
-    gl.uniform1f(this.uHoverGlowWidth, ns.hoverGlowWidth);
+    gl.uniform1f(this.uHoverGlowWidth, ns.hoverGlowWidth * outlineScale);
     gl.uniform1f(this.uHoverGlowAlpha, ns.hoverGlowAlpha);
 
     gl.activeTexture(gl.TEXTURE0);

@@ -43,6 +43,7 @@ import {
   MapRenderer,
   preloadAtlasData,
   renderDpr,
+  setMaxCanvasDpr,
   showGLGate,
 } from "../render/gl";
 import { deepAssign } from "../render/gl/SettingsUtils";
@@ -61,6 +62,7 @@ import { GoToPlayerEvent } from "../TransformHandler";
 import { PauseGameIntentEvent } from "../Transport";
 import type { UserSettingModal } from "../UserSettingModal";
 import {
+  FAST_MODE_KEY,
   GRAPHICS_KEY,
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
@@ -484,6 +486,17 @@ export class ReplayViewer extends LitElement {
         view.rebuildTerrain();
         appearance.restyle(adapter);
       },
+      { signal: this.abort.signal },
+    );
+    // Fast mode's 1x resolution, as in game (the 30 FPS cap is game-only).
+    const applyFastMode = () => {
+      setMaxCanvasDpr(userSettings.fastMode() ? 1 : Infinity);
+      view.refreshCanvasSize();
+    };
+    applyFastMode();
+    globalThis.addEventListener(
+      `${USER_SETTINGS_CHANGED_EVENT}:${FAST_MODE_KEY}`,
+      applyFastMode,
       { signal: this.abort.signal },
     );
 

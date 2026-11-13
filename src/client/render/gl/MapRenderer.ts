@@ -45,6 +45,7 @@ export class MapRenderer {
   private layerVisibility = new Map<string, boolean>();
   private layerAlpha = new Map<string, number>();
   private layerDestroyedMasks = new Map<string, Uint8Array>();
+  private maxFps: number | null = null;
 
   /**
    * Called after a lost WebGL context is restored and the renderer has been
@@ -98,10 +99,24 @@ export class MapRenderer {
       this.raf,
       this.caf,
     );
-
-    const rect = this.canvas.getBoundingClientRect();
-    if (rect.width > 0) this.renderer.resize(rect.width, rect.height);
+    this.renderer.setMaxFps(this.maxFps);
+    this.refreshCanvasSize();
   };
+
+  /**
+   * Re-measure the canvas and size its backing store, e.g. after
+   * setMaxCanvasDpr(). The resize observer only sees CSS size changes.
+   */
+  refreshCanvasSize(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    if (rect.width > 0) this.renderer?.resize(rect.width, rect.height);
+  }
+
+  /** The map is drawn at most `fps` times a second (null: every frame). */
+  setMaxFps(fps: number | null): void {
+    this.maxFps = fps;
+    this.renderer?.setMaxFps(fps);
+  }
 
   private handleContextLost = (e: Event) => {
     // preventDefault is what asks the browser to restore the context. Disposal

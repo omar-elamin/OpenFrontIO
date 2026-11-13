@@ -10,7 +10,7 @@
 import type { Config } from "@openfront/engine-lib/configuration/Config";
 import type { BonusEvent, ConquestFx } from "../../types";
 import type { RenderSettings } from "../RenderSettings";
-import { renderDpr } from "../utils/Dpr";
+import { canvasDpr, renderDpr } from "../utils/Dpr";
 import { createProgram } from "../utils/GlUtils";
 import type { GlyphTables } from "./name-pass/AtlasData";
 import { buildGlyphTables, parseAtlasData } from "./name-pass/AtlasData";
@@ -413,6 +413,9 @@ export class WorldTextPass {
     // canvasW in Camera is cssWidth*dpr, so `zoom` is device-px-per-world-unit.
     // Multiply screen-relative scales by dpr to keep a constant CSS-pixel size.
     const dpr = renderDpr();
+    // Outline widths are in these pixels too. The shader measures them in
+    // canvas pixels, which are fewer when canvasDpr() is lower.
+    const outlineScale = canvasDpr() / dpr;
 
     for (const popup of this.active) {
       const elapsed = now - popup.startMs;
@@ -463,7 +466,7 @@ export class WorldTextPass {
         this.instanceData[off + 6] = popup.colorG;
         this.instanceData[off + 7] = popup.colorB;
         this.instanceData[off + 8] = popup.scale;
-        this.instanceData[off + 9] = popup.outlineWidth;
+        this.instanceData[off + 9] = popup.outlineWidth * outlineScale;
         count++;
       }
     }
@@ -509,7 +512,7 @@ export class WorldTextPass {
         this.instanceData[off + 6] = label.colorG;
         this.instanceData[off + 7] = label.colorB;
         this.instanceData[off + 8] = attackScale;
-        this.instanceData[off + 9] = ATTACK_LABEL_OUTLINE_WIDTH;
+        this.instanceData[off + 9] = ATTACK_LABEL_OUTLINE_WIDTH * outlineScale;
         count++;
       }
     }
@@ -560,7 +563,8 @@ export class WorldTextPass {
             this.instanceData[off + 6] = label.colorG;
             this.instanceData[off + 7] = label.colorB;
             this.instanceData[off + 8] = ghostScale;
-            this.instanceData[off + 9] = GHOST_COST_OUTLINE_WIDTH;
+            this.instanceData[off + 9] =
+              GHOST_COST_OUTLINE_WIDTH * outlineScale;
             count++;
           }
         }
@@ -588,7 +592,8 @@ export class WorldTextPass {
             this.instanceData[off + 6] = label.colorG;
             this.instanceData[off + 7] = label.colorB;
             this.instanceData[off + 8] = ghostScale;
-            this.instanceData[off + 9] = GHOST_COST_OUTLINE_WIDTH;
+            this.instanceData[off + 9] =
+              GHOST_COST_OUTLINE_WIDTH * outlineScale;
             count++;
           }
         }

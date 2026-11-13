@@ -24,6 +24,7 @@ import {
 } from "../../types";
 import { DynamicInstanceBuffer } from "../DynamicBuffer";
 import type { RenderSettings } from "../RenderSettings";
+import { canvasDpr, renderDpr } from "../utils/Dpr";
 import { createProgram } from "../utils/GlUtils";
 import type { GlyphTables } from "./name-pass/AtlasData";
 import { buildGlyphTables, parseAtlasData } from "./name-pass/AtlasData";
@@ -371,6 +372,9 @@ export class StructureLevelPass {
     const gl = this.gl;
     const ss = this.settings.structure;
     const sl = this.settings.structureLevel;
+    // The outline width is in renderDpr() pixels. The shader measures it in
+    // canvas pixels, which are fewer when canvasDpr() is lower.
+    const outlineScale = canvasDpr() / renderDpr();
 
     gl.useProgram(this.program);
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
@@ -383,7 +387,7 @@ export class StructureLevelPass {
     gl.uniform1f(this.uAtlasScaleH, font.atlasScaleH);
     gl.uniform1f(this.uBase, font.base);
     gl.uniform1f(this.uDistRange, font.distanceRange);
-    gl.uniform1f(this.uOutlineWidth, sl.outlineWidth);
+    gl.uniform1f(this.uOutlineWidth, sl.outlineWidth * outlineScale);
     gl.uniform1f(this.uLevelScale, sl.scale);
     gl.uniform1f(this.uLevelOffsetY, sl.offsetY);
     gl.uniform1i(this.uHighlightMask, this.highlightMask);

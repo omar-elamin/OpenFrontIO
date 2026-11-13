@@ -31,6 +31,7 @@ import { reloadForUpdate, translateText } from "../client/Utils";
 import { rememberAdmitted } from "./AdmittedLobbies";
 import { MapLayerController } from "./controllers/MapLayerController";
 import { isDesktopShell } from "./DesktopShell";
+import { FrameLimiter } from "./FrameLimiter";
 import { GameHealth } from "./GameHealth";
 import { GameMetrics } from "./GameMetrics";
 import { createRenderer, GameRenderer } from "./hud/GameRenderer";
@@ -66,6 +67,7 @@ import {
   preloadAtlasData,
   renderDpr,
   type RenderSettings,
+  setMaxCanvasDpr,
   showGLGate,
   trackGLInit,
 } from "./render/gl";
@@ -96,6 +98,7 @@ import {
   Transport,
 } from "./Transport";
 import {
+  FAST_MODE_KEY,
   GRAPHICS_KEY,
   USER_SETTINGS_CHANGED_EVENT,
   UserSettings,
@@ -579,6 +582,7 @@ function mountWebGLFrameLoop(
   transformHandler: import("./TransformHandler").TransformHandler,
   gameView: GameView,
   eventBus: EventBus,
+  frameLimiter: FrameLimiter,
   onFrame: (nowMs: number) => void,
 ): { builder: WebGLFrameBuilder; stopFrameLoop: () => void } {
   const gameMap = terrainMap.gameMap;
@@ -637,12 +641,13 @@ function mountWebGLFrameLoop(
 
   // Self-driving RAF: syncCamera reads the latest camera state from
   // TransformHandler, pushes it to WebGL, and synchronously invokes the
-  // renderer's captured frame callback (which draws). One RAF = one
-  // synchronized camera-update + WebGL render.
+  // renderer's captured frame callback (which draws). One drawn RAF = one
+  // synchronized camera-update + WebGL render. onFrame still sees every RAF:
+  // it measures the frame loop, not the draw rate.
   let rafId: number | null = null;
   const driveFrame = (nowMs: number): void => {
     onFrame(nowMs);
-    syncCamera();
+    if (frameLimiter.shouldDraw(nowMs)) syncCamera();
     rafId = requestAnimationFrame(driveFrame);
   };
   rafId = requestAnimationFrame(driveFrame);
@@ -847,6 +852,25 @@ async function createClientGame(
       { signal: graphicsListenerAbort.signal },
     );
 
+    // Fast mode draws the map at 30 FPS and 1x resolution. A change applies
+    // at once: the canvas is resized (which clears it) and the limiter
+    // restarts, so the next frame draws it again.
+    const frameLimiter = new FrameLimiter();
+    const applyFastMode = (): void => {
+      const fastMode = userSettings.fastMode();
+      const maxFps = fastMode ? 30 : null;
+      setMaxCanvasDpr(fastMode ? 1 : Infinity);
+      view.refreshCanvasSize();
+      view.setMaxFps(maxFps);
+      frameLimiter.setMaxFps(maxFps);
+    };
+    applyFastMode();
+    globalThis.addEventListener(
+      `${USER_SETTINGS_CHANGED_EVENT}:${FAST_MODE_KEY}`,
+      applyFastMode,
+      { signal: graphicsListenerAbort.signal },
+    );
+
     // Loaded on demand so lil-gui and the debug GUI stay out of the main bundle.
     // Two folders: "Effect Editor" and "Render Settings".
     let debugGui: { open(): void; destroy(): void } | null = null;
@@ -897,6 +921,7 @@ async function createClientGame(
       gameRenderer.transformHandler,
       gameView,
       eventBus,
+      frameLimiter,
       (nowMs) => {
         metrics.recordFrame(nowMs);
         health.recordFrame(nowMs);

@@ -8,6 +8,7 @@
 
 import type { GhostPreviewData } from "../../types";
 import { UT_MIRV, UT_WARSHIP } from "../../types";
+import { canvasDpr, renderDpr } from "../utils/Dpr";
 import { createProgram } from "../utils/GlUtils";
 
 import fragSrc from "../shaders/crosshair/crosshair.frag.glsl?raw";
@@ -120,6 +121,11 @@ export class CrosshairPass {
   draw(cameraMatrix: Float32Array): void {
     const gl = this.gl;
     const now = Date.now();
+    // CROSSHAIR_PX is in renderDpr() pixels, like the camera, so measure the
+    // viewport in those too: the canvas holds fewer when canvasDpr() is lower.
+    const pxScale = renderDpr() / canvasDpr();
+    const viewportW = gl.drawingBufferWidth * pxScale;
+    const viewportH = gl.drawingBufferHeight * pxScale;
 
     if (this.blockedXTile) {
       const elapsed = now - this.blockedXTile.startTime;
@@ -141,11 +147,7 @@ export class CrosshairPass {
         gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
         gl.uniform2f(this.uCenter, this.blockedXTile.x, animY);
         gl.uniform1f(this.uHalfSize, CROSSHAIR_PX * 2.2);
-        gl.uniform2f(
-          this.uViewport,
-          gl.drawingBufferWidth,
-          gl.drawingBufferHeight,
-        );
+        gl.uniform2f(this.uViewport, viewportW, viewportH);
         gl.uniform3f(this.uColor, 1.0, 0.05, 0.05); // bright red blocked X
         gl.uniform1f(this.uIsDiagonal, 1.0);
         gl.uniform1f(this.uAlpha, animAlpha);
@@ -162,7 +164,7 @@ export class CrosshairPass {
     gl.uniformMatrix3fv(this.uCamera, false, cameraMatrix);
     gl.uniform2f(this.uCenter, this.centerX, this.centerY);
     gl.uniform1f(this.uHalfSize, CROSSHAIR_PX);
-    gl.uniform2f(this.uViewport, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.uniform2f(this.uViewport, viewportW, viewportH);
     gl.uniform1f(this.uIsDiagonal, 0.0);
     gl.uniform1f(this.uAlpha, 1.0);
 

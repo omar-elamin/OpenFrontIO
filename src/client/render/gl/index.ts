@@ -12,7 +12,7 @@ export { createRenderSettings } from "./RenderSettings";
 export type { RenderSettings } from "./RenderSettings";
 export { deepAssign } from "./SettingsUtils";
 
-export { renderDpr } from "./utils/Dpr";
+export { renderDpr, setMaxCanvasDpr } from "./utils/Dpr";
 export { buildNukeTrajectory } from "./utils/NukeTrajectory";
 export type { SAMInfo } from "./utils/NukeTrajectory";
 

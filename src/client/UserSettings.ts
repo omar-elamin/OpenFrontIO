@@ -222,6 +222,7 @@ export const PATTERN_KEY = "territoryPattern";
 export const FLAG_KEY = "flag";
 export const CROWN_KEY = "crown";
 export const PERFORMANCE_OVERLAY_KEY = "settings.performanceOverlay";
+export const FAST_MODE_KEY = "settings.fastMode";
 // Kept out of the graphics overrides so picking a preset doesn't turn it back on.
 export const MAP_LAYERS_KEY = "settings.mapLayers";
 export const KEYBINDS_KEY = "settings.keybinds";
@@ -453,6 +454,11 @@ export class UserSettings {
     return this.getBool(MAP_LAYERS_KEY, true);
   }
 
+  /** Draw the map at 30 FPS and 1x resolution to save battery and GPU. */
+  fastMode() {
+    return this.getBool(FAST_MODE_KEY, false);
+  }
+
   alertFrame() {
     return this.getBool("settings.alertFrame", true);
   }
@@ -564,6 +570,10 @@ export class UserSettings {
 
   toggleMapLayers() {
     this.setBool(MAP_LAYERS_KEY, !this.mapLayers());
+  }
+
+  toggleFastMode() {
+    this.setBool(FAST_MODE_KEY, !this.fastMode());
   }
 
   toggleAlertFrame() {
